@@ -1,0 +1,19 @@
+#!/bin/bash
+# Script to automate setting up Docker container for user.
+
+CTNR_SUFFIX="_home"
+CTNR_NAME="$USER$CTNR_SUFFIX"
+CTNR_ID=$(docker ps -a | grep $CTNR_NAME | awk '{print $1}')
+if [[ $CTNR_ID != "" ]]; then
+	docker start $CTNR_ID
+	docker exec -it $CTNR_ID sudo -Hu $USER /bin/bash -c "cd ~ && bash"
+	exit 0
+fi
+
+CTNR_ID=$(docker run -dit --name $CTNR_NAME --restart=always --hostname=$CTNR_NAME -v /home/$USER:/home/$USER umlc)
+docker exec -it $CTNR_ID adduser --disabled-password --gecos "" -u $(id -u) $USER
+docker exec -it $CTNR_ID usermod -aG sudo $USER
+docker cp /home/dave/sudoers.diff $CTNR_NAME:/tmp/
+docker exec -it $CTNR_ID bash -c "patch /etc/sudoers < /tmp/sudoers.diff"
+docker exec -it $CTNR_ID bash -c "echo 'dave' > /etc/hostname"
+docker exec -it $CTNR_ID sudo -Hu $USER /bin/bash -c "cd ~ && bash"

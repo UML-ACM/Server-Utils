@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Automate creation of user accounts
+
+if [[ $EUID -ne 0 ]]; then
+	echo "script must be run as root"
+	exit 1
+fi
+
+if [[ "$#" -ne 2 ]]; then
+	echo "Usage: $0 [ create | delete ] USERNAME"
+	exit 1
+fi
+
+THE_USER=$2
+
+if [[ "$1" == "delete" ]]; then
+	userdel -r $THE_USER
+	exit $?
+fi
+
+if [[ "$1" == "create" ]]; then
+	adduser $THE_USER
+	if [[ $? -ne 0 ]]; then
+		echo "$0: user creation failed"
+		exit 1
+	fi
+	sudo chsh $THE_USER -s /usr/local/bin/enter-container
+	if [[ $? -ne 0 ]]; then
+		echo "$0: user shell change failed"
+		exit 1
+	fi
+	sudo usermod -aG docker $THE_USER
+	if [[ $? -ne 0 ]]; then
+		echo "$0: adding $THE_USER to docker group failed"
+		exit 1
+	fi
+	exit 0
+fi
+echo "valid actions are 'create' or 'delete'"
+exit 1
